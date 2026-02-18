@@ -1,0 +1,152 @@
+Great, this is a very good product instinct. What you’re describing is a classic “cold start + auth race” problem, and you’re right: the current UX makes it feel broken even when it isn’t.
+
+I’ll break this into three parts:
+
+What’s actually going wrong (technically)
+
+The UX changes that fix it (conceptually)
+
+High-quality Replit prompts you can copy/paste to implement this cleanly
+
+I’ll also give you a concrete loading-screen spec in your turquoise theme.
+
+1️⃣ What’s actually causing the blank / long load
+
+Based on your app and Farcaster context, this is almost certainly happening:
+
+The current flow (problematic)
+
+App mounts
+
+useFarcaster() initializes SDK (async)
+
+UI immediately checks:
+
+isSDKLoaded
+
+wallet?.isConnected
+
+If either is false, you render:
+
+blank screen
+
+or connect wallet screen
+
+Meanwhile:
+
+Farcaster auto-restores session
+
+wallet does connect a moment later
+
+Result:
+
+flicker
+
+blank screen
+
+sometimes never re-renders correctly
+
+This is a race condition, not a wallet problem.
+
+2️⃣ The correct UX model (what you want instead)
+✅ New mental model
+
+There should be three app phases, not two:
+
+Phase	What’s happening	What user sees
+Boot	SDK loading, wallet restoring, permissions resolving	Loading screen
+Ready	Wallet resolved (connected or not)	App content
+Error	SDK failed or timeout	Friendly retry
+❌ What you should remove
+
+The “Connect Wallet” gate screen
+
+Any UI that assumes the wallet must be manually connected
+
+In Farcaster:
+
+If the user has already granted permission, you should auto-connect silently.
+
+3️⃣ UX changes you want to introduce
+✅ Change 1: Skip the connect wallet screen
+
+Instead of this logic:
+
+if (!wallet?.isConnected) {
+  return <ConnectWalletScreen />
+}
+
+
+You want:
+
+Always attempt auto-connect
+
+Only show an error if it fails after a timeout
+
+✅ Change 2: Add a proper loading screen
+
+This screen should show when any of these are true:
+
+SDK not loaded
+
+Wallet connection pending
+
+Token data fetching
+
+Claimable fees fetching
+
+This replaces the “blank” state entirely.
+
+4️⃣ Turquoise loading screen spec (matches your brand)
+Visual spec
+
+Background: #F2FBFA
+
+Foreground: dark ink (#0F2A3D)
+
+Accent: brand turquoise (#2FCFC3)
+
+Style: clean, retro-inspired, not noisy
+
+Behavior
+
+Shows for 300–800ms minimum (avoid flicker)
+
+Progress can be:
+
+indeterminate (animated)
+
+or fake progress that completes when data is ready
+
+4
+5️⃣ EXACT Replit prompts to implement this cleanly
+
+These are written to force correct architecture, not hacks.
+
+🔴 PROMPT 1 — Fix blank screen & loading race (USE FIRST)
+
+The app sometimes loads blank or takes too long to connect in a Farcaster environment.
+
+I want you to:
+
+Identify all async initialization steps (SDK load, wallet restore, permission check, data fetch)
+
+Detect race conditions between SDK readiness and wallet state
+
+Replace conditional rendering that causes blank screens
+
+Propose a single source of truth for “app is ready” and ensure the UI never renders an empty state.
+
+🟠 PROMPT 2 — Remove connect wallet screen safely
+
+I want to remove the explicit “Connect Wallet” screen.
+
+The app should:
+
+Attempt silent auto-connect on load
+
+Assume the user has already granted permission in Farcaster
+
+Only show an error if auto-connect fails after a timeout (e.g. 5 seconds)
+
+Modify the flow so the app always boots into a loading state first, not a connect screen.

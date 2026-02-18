@@ -1,0 +1,96 @@
+I want to refactor and optimize this app by removing unnecessary code, eliminating race conditions, and simplifying the app flow.
+
+The app is a Farcaster mini app that allows users to claim protocol fees.
+
+TARGET BEHAVIOR (this is the source of truth)
+
+On load, a loading screen appears while everything initializes.
+
+The app attempts automatic wallet connection.
+
+If the user has already granted permission, skip any connect UI and proceed automatically.
+
+If the user is new, request wallet connection once, while still showing the loading screen.
+
+Once ready, the main screen loads and shows:
+
+Wallet information
+
+Total claimable fees
+
+WETH fees and token fees displayed separately if both exist
+
+Clicking “Claim All”:
+
+Sends one transaction
+
+Funds must actually reach the wallet
+
+Success must not be assumed unless a transfer occurs
+
+After claiming, the app reloads or refetches and shows updated fees (normally zero).
+
+REQUIRED ARCHITECTURE
+
+Use a single global bootstrap flow (not scattered flags).
+
+Introduce an explicit app status enum:
+booting | connecting | ready | error
+
+UI rendering must depend only on this status.
+
+There must be no blank screen states.
+
+Remove any dedicated “Connect Wallet” screen.
+
+REQUIRED REFACTORING
+
+Identify and remove:
+
+redundant state
+
+duplicated fetch logic
+
+manual refresh/polling orchestration
+
+wallet-gated JSX branches
+
+Consolidate initialization logic into one place (e.g. a bootstrap hook).
+
+CLAIM LOGIC REQUIREMENTS
+
+Verify the claim transaction actually transfers funds.
+
+Do not mark a claim as successful if:
+
+no ERC20 Transfer event occurs
+
+zero value is transferred
+
+Ensure the claim function is called with the correct source addresses, not reward token addresses.
+
+LOADING UX
+
+Always show a loading screen during:
+
+SDK initialization
+
+wallet resolution
+
+data fetching
+
+Loading screen must prevent flicker and blank UI.
+
+OUTPUT EXPECTATION
+
+Explain the new simplified flow.
+
+Identify what code should be deleted or collapsed.
+
+Propose the minimal changes required to implement this architecture.
+
+Do NOT add new features.
+
+Prioritize correctness, clarity, and maintainability over clever optimizations.
+
+Treat this as a cleanup + stabilization refactor, not a rewrite.

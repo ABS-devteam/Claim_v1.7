@@ -1,0 +1,156 @@
+Create a secure Solidity smart contract called ClaimRouter for deployment on Base (Ethereum L2).
+
+The contract must wrap Clanker fee distributor contracts and apply a 3% tax (300 basis points) to claimed rewards.
+
+Clanker distributors send rewards to msg.sender when claim() is called.
+
+The router must:
+
+Call distributor.claim()
+
+Receive reward tokens
+
+Apply 3% tax per token
+
+Split tax:
+
+50% to treasury wallet
+0x0Ad03C988D10D7e3A9FA1aC90c2cFAB6974Ef9a3
+
+50% retained inside contract as rebate reserve
+
+Send remaining 97% to user
+
+Requirements
+
+Use:
+
+pragma solidity ^0.8.20;
+
+
+Use OpenZeppelin:
+
+Ownable
+
+ReentrancyGuard
+
+Pausable
+
+SafeERC20
+
+IERC20
+
+Core State Variables
+uint256 public claimTaxBps = 300; // 3%
+uint256 public constant MAX_TAX_BPS = 500; // 5% max
+address public immutable treasury;
+mapping(address => bool) public allowedDistributors;
+
+
+Treasury must be set in constructor.
+
+Main Function
+function claimFromClanker(
+    address distributor,
+    address[] calldata rewardTokens
+) external nonReentrant whenNotPaused
+
+
+Flow:
+
+Require distributor is allowlisted.
+
+For each reward token:
+
+Record balanceBefore.
+
+Call distributor:
+
+(bool success, ) = distributor.call(
+    abi.encodeWithSignature("claim()")
+);
+require(success, "Claim failed");
+
+
+For each reward token:
+
+Record balanceAfter.
+
+claimedAmount = balanceAfter - balanceBefore.
+
+If claimedAmount > 0:
+
+tax = claimedAmount * claimTaxBps / 10000
+
+treasuryShare = tax / 2
+
+rebateShare = tax - treasuryShare
+
+netAmount = claimedAmount - tax
+
+Transfer netAmount to msg.sender
+
+Transfer treasuryShare to treasury
+
+rebateShare remains in contract
+
+Emit:
+
+event Claimed(
+    address indexed user,
+    address indexed distributor,
+    address indexed token,
+    uint256 grossAmount,
+    uint256 taxAmount
+);
+
+Admin Functions
+
+Allow owner to:
+
+function setClaimTax(uint256 newTaxBps) external onlyOwner
+
+
+Must be <= MAX_TAX_BPS
+
+Emit event TaxUpdated
+
+function setDistributor(address distributor, bool allowed) external onlyOwner
+
+
+Emit event DistributorUpdated
+
+function withdrawRebateReserve(address token, uint256 amount) external onlyOwner
+
+function pause() external onlyOwner
+function unpause() external onlyOwner
+
+Security Rules
+
+Use SafeERC20 for transfers.
+
+Use nonReentrant on claim.
+
+Use whenNotPaused.
+
+Follow checks-effects-interactions pattern.
+
+Do not assume distributor is trusted beyond allowlist.
+
+Handle zero-claim safely.
+
+Prevent tax > 5%.
+
+Output Required
+
+Provide:
+
+Full Solidity contract code
+
+Hardhat config
+
+Deployment script for Base mainnet
+
+Clear deployment instructions
+
+Comments explaining security decisions
